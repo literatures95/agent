@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
+import { Layout } from './components/layout/Layout';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
-import { Sidebar } from './components/Sidebar';
 import { MemoryViewer } from './components/MemoryViewer';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AudioPlayer } from './components/AudioPlayer';
+import { NotificationsProvider } from './components/NotificationsProvider';
+import { useTheme } from './hooks/use-theme';
 import { api } from './lib/api';
 import type { Message, Session } from './types';
 
 function App() {
+  const { theme } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessions, setSessions] = useState<Record<string, Session>>({
     default: { id: 'default', name: '默认会话', created_at: new Date().toISOString() },
@@ -21,7 +24,6 @@ function App() {
 
   useEffect(() => {
     loadSessions();
-    loadTheme();
   }, []);
 
   const loadSessions = async () => {
@@ -30,14 +32,6 @@ function App() {
       setSessions(data.sessions);
     } catch (error) {
       console.error('加载会话失败:', error);
-    }
-  };
-
-  const loadTheme = () => {
-    const settings = localStorage.getItem('amy-settings');
-    if (settings) {
-      const parsed = JSON.parse(settings);
-      document.documentElement.classList.toggle('dark', parsed.theme === 'dark');
     }
   };
 
@@ -111,19 +105,10 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      <Sidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onSessionChange={handleSessionChange}
-        onCreateSession={handleCreateSession}
-        onDeleteSession={handleDeleteSession}
-        onViewMemory={() => setShowMemoryViewer(true)}
-        onOpenSettings={() => setShowSettings(true)}
-      />
-
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 flex flex-col">
+    <div className={theme === 'dark' ? 'dark' : ''}>
+      <NotificationsProvider />
+      <Layout>
+        <div className="flex-1 flex flex-col h-full">
           <MessageList messages={messages} isLoading={isLoading} />
           {currentAudio && (
             <div className="p-2 border-t bg-muted">
@@ -134,9 +119,8 @@ function App() {
             </div>
           )}
         </div>
-
         <ChatInput onSend={handleSend} disabled={isLoading} />
-      </div>
+      </Layout>
 
       {showMemoryViewer && (
         <MemoryViewer onClose={() => setShowMemoryViewer(false)} />
