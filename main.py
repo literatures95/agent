@@ -14,6 +14,7 @@ from memory_tools import MemoryTools, write_memory, search_memory
 
 load_dotenv()
 
+os.makedirs("audio_cache", exist_ok=True)
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
