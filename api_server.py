@@ -2,13 +2,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, AsyncGenerator
 import asyncio
 import os
 from datetime import datetime
 import json
 
 from main import ConversationAgent
+from langchain_core.messages import HumanMessage
 
 app = FastAPI(title="艾米对话系统 API", version="1.0.0")
 
@@ -89,6 +90,35 @@ async def chat_with_voice(request: ChatRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest):
+    async def generate_response() -> AsyncGenerator[str, None]:
+        try:
+            # 构建消息
+            messages = [HumanMessage(content=request.message)]
+
+            # 使用流式调用
+            async for chunk in agent.llm.astream(messages):
+                if chunk.content:
+                    data = json.dumps({"content": chunk.content})
+                    yield f"data: {data}\n\n"
+
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            error_data = json.dumps({"error": str(e)})
+            yield f"data: {error_data}\n\n"
+
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @app.get("/api/audio/{filename}")
